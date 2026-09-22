@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@maxhub/max-bot-api": "^0.3.1",
+    "@maxhub/max-ui": "^0.5.0",
     "dotenv": "^17.4.2"
   }
 }
