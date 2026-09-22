@@ -9,7 +9,7 @@ import {
 const bot = new Bot(process.env.BOT_TOKEN);
 
 // Обработчик команды /start
-bot.command('start', (ctx) => {
+bot.on('bot_started', (ctx) => {
     const user = ctx.user;
     console.log(`Пользователь ${user.user_id} запустил бота`);
 
