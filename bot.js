@@ -2,8 +2,8 @@ import { Bot } from '@maxhub/max-bot-api';
 import 'dotenv/config';
 import {
     startWaitingForAccessCode,
-    stopWaitigAccessCode,
-    isWaintigAccessCode
+    stopWaitigForAccessCode,
+    isWaintigForAccessCode
 } from './models/user-state.js'
 
 const bot = new Bot(process.env.BOT_TOKEN);
@@ -23,8 +23,36 @@ bot.command('start', (ctx) => {
 
 // Обработчик для любого другого сообщения
 bot.on('message_created', (ctx) => {
-    ctx.reply('Новое сообщение')
-    console.log(`Пользователь ${ctx.user.user_id} написал сообщение`);
+    const user = ctx.user;
+    const message = ctx.message;
+
+    // КОД ДОСТУПА
+    if (isWaintigForAccessCode(user.user_id)) {
+        const text = message?.body?.text?.trim();
+
+        // Пустое сообщение
+        if (!text) {
+            ctx.reply("Введите код доступа");
+            return;
+        }
+
+        // Выход
+        if (text === '/return') {
+            stopWaitigForAccessCode(user.user_id);
+            ctx.reply("Чтобы начать работу, введите /start");
+            return;
+        }
+
+        // Проверка кода
+        // TODO: Сделать проверку кода
+        ctx.reply("Выполняется проверка кода доступа...")
+    }
+
+    else {
+        ctx.reply('Новое сообщение')
+        console.log(`Пользователь ${ctx.user.user_id} написал сообщение: ${message.body.text}`);
+        return;
+    }
 })
 
 // Запуск бота
