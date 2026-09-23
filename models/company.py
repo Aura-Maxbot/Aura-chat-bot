@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 #from core.database import Base
 
-class UK(Base):
-    __tablename__ = "uk"
+class Company(Base):
+    __tablename__ = "company"
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
@@ -11,4 +11,6 @@ class UK(Base):
     phone = Column(String(20))
     is_active = Column(Boolean, default=True)
 
-    sotrudnik = relationship("Sotrudnik", back_populates="uk")
+    buildings = relationship("Building", back_populates="company")
+    staff = relationship("Staff", back_populates="company")
+    requests = relationship("Request", back_populates="company")

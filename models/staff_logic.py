@@ -1,39 +1,45 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-from models.sotrudnik import Sotrudnik
-from models.uk import UK
+from models.staff import Staff
+from models.company import Company
 from code_generator import generate_code
 
-class Sotrudnik_Logic:
+class StaffLogic:
+
+    ALLOWED_ROLES = [
+        "admin",
+        "dispatcher",
+        "main_dispatcher",
+    ]
+
     def __init__(self, db: Session):
         self.db = db
 
-    def add(self, uk_id: int, full_name: str, phone: str,
-            role: str, created_by: int) -> dict:
-        
-        uk = self.db.query(UK).get(uk_id)
-        if not uk:
-            return {"ok": False, "error":"УК не найдена"}
+    def add(self, company_id: int, max_id: int, full_name: str,
+            phone: str, role: str, created_by: int) -> dict:
+        company = self.db.query(Company).get(company_id)
+        if not company:
+            return {"ok": False, "error":"Компания не найдена"}
 
-        allowed_roles = ["admin", "dispatcher", "main_dispatcher"]
-        if role not in allowed_roles:
+        if role not in self.ALLOWED_ROLES:
             return {"ok": False, "error": f"Недопустимая роль:{role}"}
 
-        sotrudnik = Sotrudnik(
-            uk_id=uk_id,
+        staff = Staff(
+            company_id=company_id,
+            max_id=max_id,
             full_name=full_name,
             phone=phone,
             role=role,
             is_active=False,
         )
-        self.db.add(sotrudnik)
+        self.db.add(staff)
         self.db.flush()
 
         code = generate_code(prefix="STAFF")
 
         from models.invite_code import InviteCode
         invite = InviteCode(
-            uk_id=uk_id,
+            company_id=company_id,
             code=code,
             type="staff",
             target_role=role,
@@ -44,11 +50,10 @@ class Sotrudnik_Logic:
 
         return {
             "ok": True,
-            "sotrudnik_id": sotrudnik.id,
+            "staff_id": staff.id,
             "code": code,
             "message": f"Сотрудник добавлен. Код для входа:{code}",
         }
-
 
     def activate_by_code(self, code: str, max_id: int) -> dict:
         from models.invite_code import InviteCode
@@ -65,18 +70,15 @@ class Sotrudnik_Logic:
         if invite.expires_at and invite.expires_at < datetime.utcnow():
             return {"ok": False, "error":"Код устарел"}
 
-        sotrudnik = self.db.query(Sotrudnik).filter(
-            Sotrudnik.uk_id == invite.uk_id,
-            Sotrudnik.role == invite.target_role,
-            Sotrudnik.max_id == None,
-            Sotrudnik.is_active == False,
+        staff = self.db.query(Staff).filter(
+            Staff.max_id == max_id,
+            Staff.company_id == invite.company_id,
         ).first()
 
-        if not sotrudnik:
-            return {"ok": False}
+        if not staff:
+            return {"ok": False, "error":"Сотрудник не найден"}
 
-        sotrudnik.max_id = max_id
-        sotrudnik.is_active = True
+        staff.is_active = True
 
         invite.used_at = datetime.utcnow()
         invite.is_active = False
@@ -85,29 +87,28 @@ class Sotrudnik_Logic:
 
         return {
             "ok": True,
-            "sotrudnik_id": sotrudnik.id,
-            "role": sotrudnik.role,
-            "uk_id": sotrudnik.uk_id,
+            "staff_id": staff.id,
+            "role": staff.role,
+            "company_id": staff.company_id,
         }
 
+    def get(self, staff_id: int) -> Staff | None:
+        return self.db.query(Staff).get(staff_id)
 
-    def get(self, sotrudnik_id: int) -> Sotrudnik | None:
-        return self.db.query(Sotrudnik).get(sotrudnik_id)
+    def get_by_max_id(self, max_id: int) -> Staff | None:
+        return self.db.query(Staff).filter(Staff.max_id == max_id).first()
 
-    def get_by_max_id(self, max_id: int) -> Sotrudnik | None:
-        return self.db.query(Sotrudnik).filter(Sotrudnik.max_id == max_id).first()
-
-    def get_by_uk(self, uk_id: int) -> list[Sotrudnik]:
-        return self.db.query(Sotrudnik).filter(
-            Sotrudnik.uk_id == uk_id,
-            Sotrudnik.is_active == True,
+    def get_by_company(self, company_id: int) -> list[Staff]:
+        return self.db.query(Staff).filter(
+            Staff.company_id == company_id,
+            Staff.is_active == True,
         ).all()
 
-    def deactivate(self, sotrudnik_id: int) -> dict:
-        sotrudnik = self.db.query(Sotrudnik).get(sotrudnik_id)
-        if not sotrudnik:
+    def deactivate(self, staff_id: int) -> dict:
+        staff = self.db.query(Staff).get(staff_id)
+        if not staff:
             return {"ok": False, "error":"Сотрудник не найден"}
 
-        sotrudnik.is_active = False
+        staff.is_active = False
         self.db.commit()
         return {"ok": True}
