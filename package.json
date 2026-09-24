@@ -15,11 +15,19 @@
   "type": "module",
   "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "bot": "node bot.js",
+    "dev": "concurrently \"npm run bot\" \"vite mini-app\"",
+    "build": "vite build"
   },
   "dependencies": {
     "@maxhub/max-bot-api": "^0.3.1",
     "@maxhub/max-ui": "^0.5.0",
     "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "vite": "^8.3.0"
   }
 }
