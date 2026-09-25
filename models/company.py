@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
-#from core.database import Base
+from core.database import Base
 
 class Company(Base):
     __tablename__ = "company"

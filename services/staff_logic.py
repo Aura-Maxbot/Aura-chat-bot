@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from models.staff import Staff
 from models.company import Company
-from code_generator import generate_code
+from models.code_generator import generate_code
 
 class StaffLogic:
 

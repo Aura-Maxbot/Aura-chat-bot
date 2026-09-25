@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey
 from sqlalchemy.orm import relationship
-#from core.database import Base
+from core.database import Base
 
 class Building(Base):
     __tablename__ = "building"

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, BigInteger, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-#from core.database import Base
+from core.database import Base
 
 class Resident(Base):
     __tablename__ = "resident"

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from datetime import datetime
-#from core.database import Base
+from core.database import Base
 
 class InviteCode(Base):
     __tablename__ = "invite_code"
