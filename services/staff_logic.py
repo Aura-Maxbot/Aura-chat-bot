@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from models.staff import Staff
 from models.company import Company
-from models.code_generator import generate_code
+# from models.code_generator import generate_code
 
 class StaffLogic:
 
@@ -90,6 +90,56 @@ class StaffLogic:
             "staff_id": staff.id,
             "role": staff.role,
             "company_id": staff.company_id,
+        }
+
+    def register_admin(
+        self,
+        company_id: int,
+        max_id: int,
+        full_name: str,
+        phone: str,
+    ) -> dict:
+        """
+        Создаёт или обновляет админа компании после успешной авторизации по телефону.
+        """
+        company = self.db.query(Company).get(company_id)
+        if not company:
+            return {"ok": False, "error": "Компания не найдена"}
+
+        staff = self.db.query(Staff).filter(Staff.max_id == max_id).first()
+
+        if staff:
+            # Уже есть такой MAX-пользователь — обновляем привязку
+            staff.company_id = company_id
+            staff.full_name = full_name or staff.full_name
+            staff.phone = phone
+            staff.role = "admin"
+            staff.is_active = True
+            self.db.commit()
+            return {
+                "ok": True,
+                "staff_id": staff.id,
+                "created": False,
+                "message": "Админ обновлён",
+            }
+
+        staff = Staff(
+            company_id=company_id,
+            max_id=max_id,
+            full_name=full_name or "Администратор",
+            phone=phone,
+            role="admin",
+            is_active=True,
+        )
+        self.db.add(staff)
+        self.db.commit()
+        self.db.refresh(staff)
+
+        return {
+            "ok": True,
+            "staff_id": staff.id,
+            "created": True,
+            "message": "Админ зарегистрирован",
         }
 
     def get(self, staff_id: int) -> Staff | None:

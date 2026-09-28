@@ -63,7 +63,11 @@ bot.on('message_created', async (ctx) => {
         const response = await fetch(`${API_URL}/api/company/check-phone-admin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone })
+            body: JSON.stringify({
+                phone,
+                max_id: user.user_id,
+                full_name: user.name || user.first_name || null,
+            })
         });
         const data = await response.json();
         console.log('Ответ сервера:', data);

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from services.company_logic import CompanyLogic
+from services.staff_logic import StaffLogic
 
 app = FastAPI(title="Aura Chat Bot API")
 
@@ -19,12 +20,15 @@ app.add_middleware(
 
 class PhoneCheckRequest(BaseModel):
     phone: str
+    max_id: int
+    full_name: str | None = None
 
 
 class PhoneCheckResponse(BaseModel):
     ok: bool
     exists: bool
     company_name: str | None = None
+    staff_id: int | None = None
 
 
 @app.get("/")
@@ -39,9 +43,30 @@ def health():
 
 @app.post("/api/company/check-phone-admin", response_model=PhoneCheckResponse)
 def check_company_phone_admin(payload: PhoneCheckRequest, db: Session = Depends(get_db)):
-    logic = CompanyLogic(db)
-    result = logic.check_phone(payload.phone)
+    company_logic = CompanyLogic(db)
+    result = company_logic.check_phone(payload.phone)
+
     if not result:
         return {"ok": True, "exists": False}
-    return {"ok": True, "exists": True, "company_name": result["company_name"]}
 
+    staff_logic = StaffLogic(db)
+    staff_result = staff_logic.register_admin(
+        company_id=result["company_id"],
+        max_id=payload.max_id,
+        full_name=payload.full_name,
+        phone=payload.phone,
+    )
+
+    if not staff_result.get("ok"):
+        return {
+            "ok": False,
+            "exists": True,
+            "company_name": result["company_name"],
+        }
+
+    return {
+        "ok": True,
+        "exists": True,
+        "company_name": result["company_name"],
+        "staff_id": staff_result["staff_id"],
+    }
