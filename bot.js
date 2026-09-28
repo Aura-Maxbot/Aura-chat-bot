@@ -10,6 +10,7 @@ import {
 import { staffVerificationKeyboard } from './models/keyboard.js'
 
 const bot = new Bot(process.env.BOT_TOKEN);
+const API_URL = process.env.API_URL
 
 // Создание папки JSON
 const jsonDir = path.resolve('./json');
@@ -46,30 +47,41 @@ bot.on('message_created', async (ctx) => {
     );
 
     if (contact) {
-        // Получение номера телефона
-        const vcfInfo = contact.payload?.vcf_info;
-        const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
-        console.log('Номер телефона:', phone);
+    // Получение номера телефона
+    const vcfInfo = contact.payload?.vcf_info;
+    const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
+    console.log('Номер телефона:', phone);
 
-        // Создание файла с запросом 
-        const idData = JSON.parse(fs.readFileSync(idFile, 'utf8'));
-        const reqestID = ++idData.request;
-        fs.writeFileSync(idFile, JSON.stringify(idData, null, 2));
-
-        const reqestFile = path.join(jsonDir, `request_phone_${reqestID}.json`);
-        fs.writeFileSync(reqestFile, JSON.stringify({
-            request: reqestID,
-            action: 'check_phone',
-            phone: phone
-        }, null, 2));
-        console.log(`Создан файл ${reqestFile}`);
-
-
-       
-
-        ctx.reply('Контакт получен. Выполняется проверка...');
+    if (!phone) {
+        ctx.reply('Не удалось определить номер телефона. Попробуйте ещё раз.');
         return;
     }
+
+    ctx.reply('Контакт получен. Выполняется проверка...');
+
+    try {
+        const response = await fetch(`${API_URL}/api/company/check-phone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+        });
+        const data = await response.json();
+        console.log('Ответ сервера:', data);
+
+        if (data.exists) {
+            ctx.reply('Номер найден в системе. Добро пожаловать!');
+            stopWaitigForAccessCode(user.user_id);
+            // TODO: продолжить сценарий авторизации
+        } else {
+            ctx.reply('Номер не найден. Обратитесь в вашу управляющую компанию.');
+        }
+    } catch (err) {
+        console.error('Ошибка запроса к API:', err);
+        ctx.reply('Сервис временно недоступен. Попробуйте позже.');
+    }
+
+    return;
+}
 
         const text = message?.body?.text?.trim();
 
