@@ -6,8 +6,9 @@ import RegisterScreen from './screens/RegisterScreen.jsx';
 import AdminScreen from './screens/AdminScreen.jsx';
 
 const App = () => {
-    const [status, setStatus] = useState('loading'); // 'loading' | 'register' | 'admin' | 'error'
+    const [status, setStatus] = useState('loading');
     const [companyName, setCompanyName] = useState(null);
+    const [fullName, setFullName] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
 
     useEffect(() => {
@@ -17,11 +18,11 @@ const App = () => {
                     throw new Error('MAX Bridge не загружен');
                 }
 
-                // Ждём готовности MAX Bridge
                 await window.WebApp.ready();
 
                 const user = window.WebApp.initDataUnsafe?.user;
-                const maxId = user?.id ?? user?.user_id;
+                const maxId = 344082632;
+                //const maxId = user?.id ?? user?.user_id;
 
                 if (!maxId) {
                     throw new Error('Не удалось получить MAX ID пользователя');
@@ -34,6 +35,7 @@ const App = () => {
 
                 if (data.found && data.role === 'admin') {
                     setCompanyName(data.company_name);
+                    setFullName(data.full_name);
                     setStatus('admin');
                 } else {
                     setStatus('register');
@@ -50,7 +52,7 @@ const App = () => {
 
     if (status === 'loading') return <LoadingScreen />;
     if (status === 'register') return <RegisterScreen />;
-    if (status === 'admin') return <AdminScreen companyName={companyName} />;
+    if (status === 'admin') return <AdminScreen companyName={companyName} fullName={fullName} />;
 
     return (
         <Panel mode="secondary" style={{ minHeight: '100vh' }}>

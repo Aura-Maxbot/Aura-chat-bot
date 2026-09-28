@@ -38,6 +38,7 @@ class UserRoleResponse(BaseModel):
     found: bool
     role: str | None = None
     staff_id: int | None = None
+    full_name: str | None = None
     company_id: int | None = None
     company_name: str | None = None
 

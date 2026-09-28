@@ -177,6 +177,7 @@ class StaffLogic:
         return {
             "staff_id": staff.id,
             "role": staff.role,
+            "full_name": staff.full_name,
             "company_id": staff.company_id,
             "company_name": company.name if company else None,
         }
