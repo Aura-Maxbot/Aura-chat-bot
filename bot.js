@@ -1,13 +1,25 @@
 import { Bot } from '@maxhub/max-bot-api';
+import fs from 'fs';
+import path from 'path';
 import 'dotenv/config';
 import {
     startWaitingForAccessCode,
     stopWaitigForAccessCode,
     isWaintigForAccessCode
 } from './models/user-state.js'
-import { staffVerificationKeyboard } from './models/keyboard.js'
+import { 
+    staffVerificationKeyboard,
+    cabinetKeyboard     
+ } from './models/keyboard.js'
 
 const bot = new Bot(process.env.BOT_TOKEN);
+const API_URL = process.env.API_URL
+
+// Создание папки JSON
+const jsonDir = path.resolve('./json');
+    if (!fs.existsSync(jsonDir)) fs.mkdirSync(jsonDir);
+const idFile = path.resolve('./json/id.json');
+if (!fs.existsSync(idFile)) fs.writeFileSync(idFile, JSON.stringify({ request: 0, response: 0 }, null, 2));
 
 // Обработчик запуска бота
 bot.on('bot_started', async (ctx) => {
@@ -38,15 +50,49 @@ bot.on('message_created', async (ctx) => {
     );
 
     if (contact) {
-        const vcfInfo = contact.payload?.vcf_info;
-        const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
-        console.log('Номер телефона:', phone);
+    const vcfInfo = contact.payload?.vcf_info;
+    const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
+    console.log('Номер телефона:', phone);
 
-        // TODO: проверить контакт
-
-        ctx.reply('Контакт получен. Выполняется проверка...');
+    if (!phone) {
+        ctx.reply('Не удалось определить номер телефона. Попробуйте ещё раз.');
         return;
     }
+
+    try {
+        const response = await fetch(`${API_URL}/api/company/check-phone-admin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone,
+                max_id: user.user_id,
+                full_name: user.name || user.first_name || null,
+            })
+        });
+        const data = await response.json();
+        console.log('Ответ сервера:', data);
+
+        if (data.exists) {
+            ctx.reply(
+                `Вы успешно авторизованы!\n` +
+                `Ваша компания: ${data.company_name}\n`+
+                `Ваша должность: Председатель`, 
+                {
+                    attachments: [cabinetKeyboard]
+                }
+            );
+            stopWaitigForAccessCode(user.user_id);
+        } else {
+            // TODO: Авторизация сотрудника
+            ctx.reply('Номер не найден. Обратитесь в вашу управляющую компанию.');
+        }
+    } catch (err) {
+        console.error('Ошибка запроса к API:', err);
+        ctx.reply('Сервис временно недоступен. Попробуйте позже.');
+    }
+
+    return;
+}
 
         const text = message?.body?.text?.trim();
 

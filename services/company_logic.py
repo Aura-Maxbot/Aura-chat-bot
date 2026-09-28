@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.company import Company
 from models.staff import Staff
-from models.code_generator import generate_code
+# from models.code_generator import generate_code
 
 class CompanyLogic:
 
@@ -62,3 +62,15 @@ class CompanyLogic:
 
     def get_active(self) -> list[Company]:
         return self.db.query(Company).filter(Company.is_active == True).all()
+
+    def check_phone(self, phone: str) -> dict | None:
+        if not phone:
+            return None
+        phone = phone.strip()
+        company = self.db.query(Company).filter(Company.phone == phone).first()
+        if not company:
+            return None
+        return {
+            "company_id": company.id,
+            "company_name": company.name,
+        }

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from models.staff import Staff
 from models.company import Company
-from models.code_generator import generate_code
+# from models.code_generator import generate_code
 
 class StaffLogic:
 
@@ -19,17 +19,17 @@ class StaffLogic:
             phone: str, role: str, created_by: int) -> dict:
         company = self.db.query(Company).get(company_id)
         if not company:
-            return {"ok": False, "error":"Компания не найдена"}
+            return {"ok": False, "error": "Компания не найдена"}
 
-        if role not in self.ALLOWED_ROLES:
-            return {"ok": False, "error": f"Недопустимая роль:{role}"}
+        if not role or not role.strip():
+            return {"ok": False, "error": "Укажите должность"}
 
         staff = Staff(
             company_id=company_id,
             max_id=max_id,
             full_name=full_name,
             phone=phone,
-            role=role,
+            role=role.strip(),
             is_active=False,
         )
         self.db.add(staff)
@@ -42,7 +42,7 @@ class StaffLogic:
             company_id=company_id,
             code=code,
             type="staff",
-            target_role=role,
+            target_role=role.strip(),
             created_by_staff=created_by,
         )
         self.db.add(invite)
@@ -52,7 +52,7 @@ class StaffLogic:
             "ok": True,
             "staff_id": staff.id,
             "code": code,
-            "message": f"Сотрудник добавлен. Код для входа:{code}",
+            "message": f"Сотрудник добавлен. Код для входа: {code}",
         }
 
     def activate_by_code(self, code: str, max_id: int) -> dict:
@@ -92,6 +92,56 @@ class StaffLogic:
             "company_id": staff.company_id,
         }
 
+    def register_admin(
+        self,
+        company_id: int,
+        max_id: int,
+        full_name: str,
+        phone: str,
+    ) -> dict:
+        """
+        Создаёт или обновляет админа компании после успешной авторизации по телефону.
+        """
+        company = self.db.query(Company).get(company_id)
+        if not company:
+            return {"ok": False, "error": "Компания не найдена"}
+
+        staff = self.db.query(Staff).filter(Staff.max_id == max_id).first()
+
+        if staff:
+            # Уже есть такой MAX-пользователь — обновляем привязку
+            staff.company_id = company_id
+            staff.full_name = full_name or staff.full_name
+            staff.phone = phone
+            staff.role = "admin"
+            staff.is_active = True
+            self.db.commit()
+            return {
+                "ok": True,
+                "staff_id": staff.id,
+                "created": False,
+                "message": "Админ обновлён",
+            }
+
+        staff = Staff(
+            company_id=company_id,
+            max_id=max_id,
+            full_name=full_name or "Администратор",
+            phone=phone,
+            role="admin",
+            is_active=True,
+        )
+        self.db.add(staff)
+        self.db.commit()
+        self.db.refresh(staff)
+
+        return {
+            "ok": True,
+            "staff_id": staff.id,
+            "created": True,
+            "message": "Админ зарегистрирован",
+        }
+
     def get(self, staff_id: int) -> Staff | None:
         return self.db.query(Staff).get(staff_id)
 
@@ -112,3 +162,79 @@ class StaffLogic:
         staff.is_active = False
         self.db.commit()
         return {"ok": True}
+
+    def get_by_max_id_with_company(self, max_id: int) -> dict | None:
+        staff = self.db.query(Staff).filter(
+            Staff.max_id == max_id,
+            Staff.is_active == True,
+        ).first()
+
+        if not staff:
+            return None
+
+        company = self.db.query(Company).get(staff.company_id)
+
+        return {
+            "staff_id": staff.id,
+            "role": staff.role,
+            "full_name": staff.full_name,
+            "company_id": staff.company_id,
+            "company_name": company.name if company else None,
+        }
+
+    def add_direct(self, company_id: int, full_name: str,
+                phone: str, role: str) -> dict:
+        company = self.db.query(Company).get(company_id)
+        if not company:
+            return {"ok": False, "error": "Компания не найдена"}
+
+        if not role or not role.strip():
+            return {"ok": False, "error": "Укажите должность"}
+
+        if not phone or not phone.strip():
+            return {"ok": False, "error": "Укажите номер телефона"}
+
+        phone = phone.strip()
+        role = role.strip()
+
+        existing = self.db.query(Staff).filter(
+            Staff.company_id == company_id,
+            Staff.phone == phone,
+        ).first()
+        if existing:
+            return {"ok": False, "error": "Сотрудник с таким номером уже добавлен"}
+
+        staff = Staff(
+            company_id=company_id,
+            max_id=None,
+            full_name=full_name or "Не активирован",
+            phone=phone,
+            role=role,
+            is_active=False,
+        )
+        self.db.add(staff)
+        self.db.commit()
+        self.db.refresh(staff)
+
+        return {
+            "ok": True,
+            "staff_id": staff.id,
+            "message": "Сотрудник добавлен",
+        }
+
+    def list_by_company(self, company_id: int) -> list[dict]:
+        staff = self.db.query(Staff).filter(
+            Staff.company_id == company_id,
+        ).order_by(Staff.id).all()
+
+        return [
+            {
+                "staff_id": s.id,
+                "full_name": s.full_name,
+                "role": s.role,
+                "phone": s.phone,
+                "is_active": bool(s.is_active),
+                "max_id": s.max_id,
+            }
+            for s in staff
+        ]
