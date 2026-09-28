@@ -10,6 +10,8 @@ const App = () => {
     const [companyName, setCompanyName] = useState(null);
     const [fullName, setFullName] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
+    const [companyId, setCompanyId] = useState(null);
+    const [staffId, setStaffId] = useState(null);
 
     useEffect(() => {
         const init = async () => {
@@ -37,6 +39,8 @@ const App = () => {
                     setCompanyName(data.company_name);
                     setFullName(data.full_name);
                     setStatus('admin');
+                    setCompanyId(data.company_id);
+                    setStaffId(data.staff_id);
                 } else {
                     setStatus('register');
                 }
@@ -52,8 +56,14 @@ const App = () => {
 
     if (status === 'loading') return <LoadingScreen />;
     if (status === 'register') return <RegisterScreen />;
-    if (status === 'admin') return <AdminScreen companyName={companyName} fullName={fullName} />;
-
+    if (status === 'admin') return (
+            <AdminScreen
+                companyName={companyName}
+                fullName={fullName}
+                companyId={companyId}
+                staffId={staffId}
+            />
+        );
     return (
         <Panel mode="secondary" style={{ minHeight: '100vh' }}>
             <Flex direction="column" align="center" justify="center" style={{ minHeight: '100vh', padding: 24 }}>

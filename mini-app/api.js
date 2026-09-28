@@ -7,3 +7,19 @@ export async function fetchUserRole(maxId) {
     }
     return response.json();
 }
+
+export async function addStaff(companyId, role, createdBy) {
+    const response = await fetch(`${API_URL}/api/staff/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            company_id: companyId,
+            role,
+            created_by: createdBy,
+        }),
+    });
+    if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+    }
+    return response.json();
+}
