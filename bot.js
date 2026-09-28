@@ -15,6 +15,7 @@ const bot = new Bot(process.env.BOT_TOKEN);
 const jsonDir = path.resolve('./json');
     if (!fs.existsSync(jsonDir)) fs.mkdirSync(jsonDir);
 const idFile = path.resolve('./json/id.json'); //TODO: Добавить запись параметров по умолчанию
+if (!fs.existsSync(idFile)) fs.writeFileSync(idFile, JSON.stringify({ request: 0, response: 0 }, null, 2));
 
 // Обработчик запуска бота
 bot.on('bot_started', async (ctx) => {
@@ -49,6 +50,8 @@ bot.on('message_created', async (ctx) => {
         const vcfInfo = contact.payload?.vcf_info;
         const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
         console.log('Номер телефона:', phone);
+
+
        
 
         ctx.reply('Контакт получен. Выполняется проверка...');
