@@ -1,19 +1,67 @@
-import { Panel, Grid, Container, Flex, Avatar, Typography } from '@maxhub/max-ui';
+import { useEffect, useState } from 'react';
+import { Panel, Flex, Typography } from '@maxhub/max-ui';
+import { fetchUserRole } from './api.js';
+import LoadingScreen from './screens/LoadingScreen.jsx';
+import RegisterScreen from './screens/RegisterScreen.jsx';
+import AdminScreen from './screens/AdminScreen.jsx';
 
-const App = () => (
-    <Panel mode="secondary" className="panel">
-        <Grid gap={12} cols={1}>
-            <Container className="me">
-                <Flex direction="column" align="center">
-                    <Avatar.Container size={72} form="squircle" className="me__avatar">
-                        <Avatar.Image src="https://sun9-21.userapi.com/1N-rJz6-7hoTDW7MhpWe19e_R_TdGV6Wu5ZC0A/67o6-apnAks.jpg" />
-                    </Avatar.Container>
+const App = () => {
+    const [status, setStatus] = useState('loading'); // 'loading' | 'register' | 'admin' | 'error'
+    const [companyName, setCompanyName] = useState(null);
+    const [errorMessage, setErrorMessage] = useState(null);
 
-                    <Typography.Title>Иван Иванов</Typography.Title>
-                </Flex>
-            </Container>
-        </Grid>
-    </Panel>
-)
+    useEffect(() => {
+        const init = async () => {
+            try {
+                if (!window.WebApp) {
+                    throw new Error('MAX Bridge не загружен');
+                }
+
+                // Ждём готовности MAX Bridge
+                await window.WebApp.ready();
+
+                const user = window.WebApp.initDataUnsafe?.user;
+                const maxId = user?.id ?? user?.user_id;
+
+                if (!maxId) {
+                    throw new Error('Не удалось получить MAX ID пользователя');
+                }
+
+                console.log('MAX ID:', maxId);
+
+                const data = await fetchUserRole(maxId);
+                console.log('Ответ API:', data);
+
+                if (data.found && data.role === 'admin') {
+                    setCompanyName(data.company_name);
+                    setStatus('admin');
+                } else {
+                    setStatus('register');
+                }
+            } catch (err) {
+                console.error('Ошибка инициализации:', err);
+                setErrorMessage(err.message);
+                setStatus('error');
+            }
+        };
+
+        init();
+    }, []);
+
+    if (status === 'loading') return <LoadingScreen />;
+    if (status === 'register') return <RegisterScreen />;
+    if (status === 'admin') return <AdminScreen companyName={companyName} />;
+
+    return (
+        <Panel mode="secondary" style={{ minHeight: '100vh' }}>
+            <Flex direction="column" align="center" justify="center" style={{ minHeight: '100vh', padding: 24 }}>
+                <Typography.Title>Ошибка</Typography.Title>
+                <Typography.Text style={{ marginTop: 12, textAlign: 'center' }}>
+                    {errorMessage}
+                </Typography.Text>
+            </Flex>
+        </Panel>
+    );
+};
 
 export default App;

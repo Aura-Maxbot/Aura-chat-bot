@@ -162,3 +162,21 @@ class StaffLogic:
         staff.is_active = False
         self.db.commit()
         return {"ok": True}
+
+    def get_by_max_id_with_company(self, max_id: int) -> dict | None:
+        staff = self.db.query(Staff).filter(
+            Staff.max_id == max_id,
+            Staff.is_active == True,
+        ).first()
+
+        if not staff:
+            return None
+
+        company = self.db.query(Company).get(staff.company_id)
+
+        return {
+            "staff_id": staff.id,
+            "role": staff.role,
+            "company_id": staff.company_id,
+            "company_name": company.name if company else None,
+        }

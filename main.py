@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from services.company_logic import CompanyLogic
 from services.staff_logic import StaffLogic
+from models.staff import Staff
+from models.company import Company
 
 app = FastAPI(title="Aura Chat Bot API")
 
@@ -31,6 +33,17 @@ class PhoneCheckResponse(BaseModel):
     staff_id: int | None = None
 
 
+class UserRoleResponse(BaseModel):
+    ok: bool
+    found: bool
+    role: str | None = None
+    staff_id: int | None = None
+    company_id: int | None = None
+    company_name: str | None = None
+
+
+
+
 @app.get("/")
 def root():
     return {"status": "ok", "service": "Aura Chat Bot API"}
@@ -43,6 +56,7 @@ def health():
 
 @app.post("/api/company/check-phone-admin", response_model=PhoneCheckResponse)
 def check_company_phone_admin(payload: PhoneCheckRequest, db: Session = Depends(get_db)):
+
     company_logic = CompanyLogic(db)
     result = company_logic.check_phone(payload.phone)
 
@@ -70,3 +84,13 @@ def check_company_phone_admin(payload: PhoneCheckRequest, db: Session = Depends(
         "company_name": result["company_name"],
         "staff_id": staff_result["staff_id"],
     }
+
+@app.get("/api/staff/by-max-id/{max_id}", response_model=UserRoleResponse)
+def get_staff_by_max_id(max_id: int, db: Session = Depends(get_db)):
+    logic = StaffLogic(db)
+    result = logic.get_by_max_id_with_company(max_id)
+
+    if not result:
+        return {"ok": True, "found": False}
+
+    return {"ok": True, "found": True, **result}
