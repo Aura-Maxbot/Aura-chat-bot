@@ -14,7 +14,7 @@ const bot = new Bot(process.env.BOT_TOKEN);
 // Создание папки JSON
 const jsonDir = path.resolve('./json');
     if (!fs.existsSync(jsonDir)) fs.mkdirSync(jsonDir);
-const idFile = path.resolve('./json/id.json'); //TODO: Добавить запись параметров по умолчанию
+const idFile = path.resolve('./json/id.json');
 if (!fs.existsSync(idFile)) fs.writeFileSync(idFile, JSON.stringify({ request: 0, response: 0 }, null, 2));
 
 // Обработчик запуска бота
@@ -50,6 +50,19 @@ bot.on('message_created', async (ctx) => {
         const vcfInfo = contact.payload?.vcf_info;
         const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
         console.log('Номер телефона:', phone);
+
+        // Создание файла с запросом 
+        const idData = JSON.parse(fs.readFileSync(idFile, 'utf8'));
+        const reqestID = ++idData.request;
+        fs.writeFileSync(idFile, JSON.stringify(idData, null, 2));
+
+        const reqestFile = path.join(jsonDir, `request_phone_${reqestID}.json`);
+        fs.writeFileSync(reqestFile, JSON.stringify({
+            request: reqestID,
+            action: 'check_phone',
+            phone: phone
+        }, null, 2));
+        console.log(`Создан файл ${reqestFile}`);
 
 
        
