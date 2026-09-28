@@ -47,7 +47,6 @@ bot.on('message_created', async (ctx) => {
     );
 
     if (contact) {
-    // Получение номера телефона
     const vcfInfo = contact.payload?.vcf_info;
     const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
     console.log('Номер телефона:', phone);
@@ -57,10 +56,8 @@ bot.on('message_created', async (ctx) => {
         return;
     }
 
-    ctx.reply('Контакт получен. Выполняется проверка...');
-
     try {
-        const response = await fetch(`${API_URL}/api/company/check-phone`, {
+        const response = await fetch(`${API_URL}/api/company/check-phone-admin`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone })
@@ -69,10 +66,14 @@ bot.on('message_created', async (ctx) => {
         console.log('Ответ сервера:', data);
 
         if (data.exists) {
-            ctx.reply('Номер найден в системе. Добро пожаловать!');
+            ctx.reply(
+                `Вы успешно авторизованы!\n` +
+                `Ваша компания: ${data.company_name}`+
+                `Ваша должность: Председатель`
+            );
             stopWaitigForAccessCode(user.user_id);
-            // TODO: продолжить сценарий авторизации
         } else {
+            // TODO: Авторизация сотрудника
             ctx.reply('Номер не найден. Обратитесь в вашу управляющую компанию.');
         }
     } catch (err) {

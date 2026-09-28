@@ -63,8 +63,14 @@ class CompanyLogic:
     def get_active(self) -> list[Company]:
         return self.db.query(Company).filter(Company.is_active == True).all()
 
-    def check_phone(self, phone: str) -> bool:
+    def check_phone(self, phone: str) -> dict | None:
         if not phone:
-            return False
+            return None
         phone = phone.strip()
-        return self.db.query(Company).filter(Company.phone == phone).first() is not None
+        company = self.db.query(Company).filter(Company.phone == phone).first()
+        if not company:
+            return None
+        return {
+            "company_id": company.id,
+            "company_name": company.name,
+        }

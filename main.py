@@ -24,6 +24,7 @@ class PhoneCheckRequest(BaseModel):
 class PhoneCheckResponse(BaseModel):
     ok: bool
     exists: bool
+    company_name: str | None = None
 
 
 @app.get("/")
@@ -36,8 +37,11 @@ def health():
     return {"status": "healthy"}
 
 
-@app.post("/api/company/check-phone", response_model=PhoneCheckResponse)
-def check_company_phone(payload: PhoneCheckRequest, db: Session = Depends(get_db)):
+@app.post("/api/company/check-phone-admin", response_model=PhoneCheckResponse)
+def check_company_phone_admin(payload: PhoneCheckRequest, db: Session = Depends(get_db)):
     logic = CompanyLogic(db)
-    exists = logic.check_phone(payload.phone)
-    return {"ok": True, "exists": exists}
+    result = logic.check_phone(payload.phone)
+    if not result:
+        return {"ok": True, "exists": False}
+    return {"ok": True, "exists": True, "company_name": result["company_name"]}
+
