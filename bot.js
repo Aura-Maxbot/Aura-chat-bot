@@ -7,7 +7,10 @@ import {
     stopWaitigForAccessCode,
     isWaintigForAccessCode
 } from './models/user-state.js'
-import { staffVerificationKeyboard } from './models/keyboard.js'
+import { 
+    staffVerificationKeyboard,
+    cabinetKeyboard     
+ } from './models/keyboard.js'
 
 const bot = new Bot(process.env.BOT_TOKEN);
 const API_URL = process.env.API_URL
@@ -68,8 +71,11 @@ bot.on('message_created', async (ctx) => {
         if (data.exists) {
             ctx.reply(
                 `Вы успешно авторизованы!\n` +
-                `Ваша компания: ${data.company_name}`+
-                `Ваша должность: Председатель`
+                `Ваша компания: ${data.company_name}\n`+
+                `Ваша должность: Председатель`, 
+                {
+                    attachments: [cabinetKeyboard]
+                }
             );
             stopWaitigForAccessCode(user.user_id);
         } else {
