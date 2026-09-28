@@ -112,7 +112,7 @@ def add_staff(payload: AddStaffRequest, db: Session = Depends(get_db)):
     logic = StaffLogic(db)
     result = logic.add_direct(
         company_id=payload.company_id,
-        full_name=payload.full_name or "Не активирован",
+        full_name=payload.full_name or " ",
         phone=payload.phone,
         role=payload.role,
     )
