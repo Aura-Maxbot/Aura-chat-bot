@@ -6,3 +6,7 @@ node_modules/
 
 # Логи
 *.log
+
+# Python
+__pycache__/
+*.pyc
