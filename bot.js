@@ -1,4 +1,6 @@
 import { Bot } from '@maxhub/max-bot-api';
+import fs from 'fs';
+import path from 'path';
 import 'dotenv/config';
 import {
     startWaitingForAccessCode,
@@ -8,6 +10,11 @@ import {
 import { staffVerificationKeyboard } from './models/keyboard.js'
 
 const bot = new Bot(process.env.BOT_TOKEN);
+
+// Создание папки JSON
+const jsonDir = path.resolve('./json');
+    if (!fs.existsSync(jsonDir)) fs.mkdirSync(jsonDir);
+const idFile = path.resolve('./json/id.json'); //TODO: Добавить запись параметров по умолчанию
 
 // Обработчик запуска бота
 bot.on('bot_started', async (ctx) => {
@@ -38,11 +45,11 @@ bot.on('message_created', async (ctx) => {
     );
 
     if (contact) {
+        // Получение номера телефона
         const vcfInfo = contact.payload?.vcf_info;
         const phone = vcfInfo?.match(/TEL[^:]*:([^\r\n]+)/)?.[1];
         console.log('Номер телефона:', phone);
-
-        // TODO: проверить контакт
+       
 
         ctx.reply('Контакт получен. Выполняется проверка...');
         return;
