@@ -1,5 +1,4 @@
-// TODO: Сделать связь с бэкендом для списка приглашенных сотрудников 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Panel,
     Flex,
@@ -12,7 +11,7 @@ import {
     CellSimple,
     Button,
 } from '@maxhub/max-ui';
-import { addStaff } from '../api.js';
+import { addStaff, fetchStaffList } from '../api.js';
 
 function formatPhone(value) {
     let digits = value.replace(/\D/g, '');
@@ -48,10 +47,43 @@ const inputStyle = {
     boxSizing: 'border-box',
 };
 
+// --- Иконки статуса (SVG-заглушки, при желании заменить на иконки из MAX UI) ---
+
+const SpinnerIcon = () => (
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        style={{ animation: 'spin 1s linear infinite' }}
+    >
+        <circle
+            cx="12" cy="12" r="9"
+            stroke="#c0c0c0" strokeWidth="3" fill="none"
+        />
+        <path
+            d="M21 12a9 9 0 0 0-9-9"
+            stroke="#3b82f6" strokeWidth="3" fill="none" strokeLinecap="round"
+        />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); transform-origin: 12px 12px; } to { transform: rotate(360deg); transform-origin: 12px 12px; } }`}</style>
+    </svg>
+);
+
+const CheckIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="11" fill="#22c55e" />
+        <path
+            d="M7 12.5l3.2 3.2L17 9"
+            stroke="#fff" strokeWidth="2.5" fill="none"
+            strokeLinecap="round" strokeLinejoin="round"
+        />
+    </svg>
+);
+
 const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
     const companyInitial = companyName ? companyName.trim()[0].toUpperCase() : '?';
 
     const [staff, setStaff] = useState([]);
+    const [loadingList, setLoadingList] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
     const [roleInput, setRoleInput] = useState('');
     const [phoneInput, setPhoneInput] = useState('');
@@ -59,6 +91,26 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
+
+    const loadStaff = async () => {
+        if (!companyId) return;
+        setLoadingList(true);
+        try {
+            const data = await fetchStaffList(companyId);
+            console.log('Сотрудники:', data);
+            if (data.ok) {
+                setStaff(data.staff || []);
+            }
+        } catch (err) {
+            console.error('Ошибка загрузки сотрудников:', err);
+        } finally {
+            setLoadingList(false);
+        }
+    };
+
+    useEffect(() => {
+        loadStaff();
+    }, [companyId]);
 
     const handleAdd = async () => {
         if (!nameInput.trim()) {
@@ -90,20 +142,11 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
                 return;
             }
 
-            setStaff((prev) => [
-                ...prev,
-                {
-                    id: data.staff_id ?? Date.now(),
-                    full_name: nameInput.trim(),
-                    role: roleInput.trim(),
-                    phone: phoneInput,
-                },
-            ]);
-
             setSuccess(true);
             setRoleInput('');
             setPhoneInput('');
             setNameInput('');
+            await loadStaff();
             setTimeout(() => {
                 setSuccess(false);
                 setShowAdd(false);
@@ -151,29 +194,41 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
                     header={<CellHeader titleStyle="caps">Сотрудники</CellHeader>}
                     mode="island"
                 >
-                    {staff.length === 0 && (
+                    {loadingList && staff.length === 0 && (
+                        <CellSimple title="Загрузка...">
+                            Получаем список сотрудников
+                        </CellSimple>
+                    )}
+
+                    {!loadingList && staff.length === 0 && (
                         <CellSimple title="Пока никого нет">
                             Добавьте первого сотрудника
                         </CellSimple>
                     )}
 
-                    {staff.map((member) => (
-                        <CellSimple
-                            key={member.id}
-                            before={
-                                <Avatar.Container size={40}>
-                                    <Avatar.Text>
-                                        {member.full_name?.[0]?.toUpperCase() || '?'}
-                                    </Avatar.Text>
-                                </Avatar.Container>
-                            }
-                            onClick={() => {}}
-                            showChevron
-                            title={member.full_name}
-                        >
-                            {member.role} · {member.phone}
-                        </CellSimple>
-                    ))}
+                    {staff.map((member) => {
+                        const joined = member.is_active;
+                        const subtitle = joined
+                            ? 'Сотрудник присоединился'
+                            : 'Приглашение отправлено';
+
+                        return (
+                            <CellSimple
+                                key={member.staff_id}
+                                before={
+                                    <Flex align="center">
+                                        {joined ? <CheckIcon /> : <SpinnerIcon />}
+                                    </Flex>
+                                }
+                                onClick={() => {}}
+                                showChevron
+                                title={`${member.full_name} — ${member.role}`}
+                            >
+                                {subtitle}
+                                {member.phone ? ` · ${member.phone}` : ''}
+                            </CellSimple>
+                        );
+                    })}
                 </CellList>
 
                 {/* Кнопка "Добавить сотрудника" */}

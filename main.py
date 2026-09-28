@@ -54,6 +54,18 @@ class AddStaffResponse(BaseModel):
     error: str | None = None
     staff_id: int | None = None
 
+class StaffItem(BaseModel):
+    staff_id: int
+    full_name: str
+    role: str
+    phone: str | None = None
+    is_active: bool
+
+
+class StaffListResponse(BaseModel):
+    ok: bool
+    staff: list[StaffItem] = []
+
 
 
 @app.get("/")
@@ -119,3 +131,9 @@ def add_staff(payload: AddStaffRequest, db: Session = Depends(get_db)):
     if not result.get("ok"):
         return {"ok": False, "error": result.get("error")}
     return {"ok": True, "staff_id": result["staff_id"]}
+
+@app.get("/api/staff/by-company/{company_id}", response_model=StaffListResponse)
+def list_staff_by_company(company_id: int, db: Session = Depends(get_db)):
+    logic = StaffLogic(db)
+    items = logic.list_by_company(company_id)
+    return {"ok": True, "staff": items}

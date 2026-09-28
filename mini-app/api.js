@@ -24,3 +24,11 @@ export async function addStaff(companyId, role, phone, fullName) {
     }
     return response.json();
 }
+
+export async function fetchStaffList(companyId) {
+    const response = await fetch(`${API_URL}/api/staff/by-company/${companyId}`);
+    if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+    }
+    return response.json();
+}

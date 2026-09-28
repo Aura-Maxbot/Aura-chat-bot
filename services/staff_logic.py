@@ -221,3 +221,20 @@ class StaffLogic:
             "staff_id": staff.id,
             "message": "Сотрудник добавлен",
         }
+
+    def list_by_company(self, company_id: int) -> list[dict]:
+        staff = self.db.query(Staff).filter(
+            Staff.company_id == company_id,
+        ).order_by(Staff.id).all()
+
+        return [
+            {
+                "staff_id": s.id,
+                "full_name": s.full_name,
+                "role": s.role,
+                "phone": s.phone,
+                "is_active": bool(s.is_active),
+                "max_id": s.max_id,
+            }
+            for s in staff
+        ]

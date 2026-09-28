@@ -23,8 +23,7 @@ const App = () => {
                 await window.WebApp.ready();
 
                 const user = window.WebApp.initDataUnsafe?.user;
-                const maxId = 344082632;
-                //const maxId = user?.id ?? user?.user_id;
+                const maxId = user?.id ?? user?.user_id;
 
                 if (!maxId) {
                     throw new Error('Не удалось получить MAX ID пользователя');
