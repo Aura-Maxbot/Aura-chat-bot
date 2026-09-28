@@ -19,17 +19,17 @@ class StaffLogic:
             phone: str, role: str, created_by: int) -> dict:
         company = self.db.query(Company).get(company_id)
         if not company:
-            return {"ok": False, "error":"Компания не найдена"}
+            return {"ok": False, "error": "Компания не найдена"}
 
-        if role not in self.ALLOWED_ROLES:
-            return {"ok": False, "error": f"Недопустимая роль:{role}"}
+        if not role or not role.strip():
+            return {"ok": False, "error": "Укажите должность"}
 
         staff = Staff(
             company_id=company_id,
             max_id=max_id,
             full_name=full_name,
             phone=phone,
-            role=role,
+            role=role.strip(),
             is_active=False,
         )
         self.db.add(staff)
@@ -42,7 +42,7 @@ class StaffLogic:
             company_id=company_id,
             code=code,
             type="staff",
-            target_role=role,
+            target_role=role.strip(),
             created_by_staff=created_by,
         )
         self.db.add(invite)
@@ -52,7 +52,7 @@ class StaffLogic:
             "ok": True,
             "staff_id": staff.id,
             "code": code,
-            "message": f"Сотрудник добавлен. Код для входа:{code}",
+            "message": f"Сотрудник добавлен. Код для входа: {code}",
         }
 
     def activate_by_code(self, code: str, max_id: int) -> dict:
@@ -180,4 +180,44 @@ class StaffLogic:
             "full_name": staff.full_name,
             "company_id": staff.company_id,
             "company_name": company.name if company else None,
+        }
+
+    def add_direct(self, company_id: int, full_name: str,
+                phone: str, role: str) -> dict:
+        company = self.db.query(Company).get(company_id)
+        if not company:
+            return {"ok": False, "error": "Компания не найдена"}
+
+        if not role or not role.strip():
+            return {"ok": False, "error": "Укажите должность"}
+
+        if not phone or not phone.strip():
+            return {"ok": False, "error": "Укажите номер телефона"}
+
+        phone = phone.strip()
+        role = role.strip()
+
+        existing = self.db.query(Staff).filter(
+            Staff.company_id == company_id,
+            Staff.phone == phone,
+        ).first()
+        if existing:
+            return {"ok": False, "error": "Сотрудник с таким номером уже добавлен"}
+
+        staff = Staff(
+            company_id=company_id,
+            max_id=None,
+            full_name=full_name or "Не активирован",
+            phone=phone,
+            role=role,
+            is_active=False,
+        )
+        self.db.add(staff)
+        self.db.commit()
+        self.db.refresh(staff)
+
+        return {
+            "ok": True,
+            "staff_id": staff.id,
+            "message": "Сотрудник добавлен",
         }

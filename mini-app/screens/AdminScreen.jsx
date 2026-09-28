@@ -13,40 +13,52 @@ import {
 } from '@maxhub/max-ui';
 import { addStaff } from '../api.js';
 
-const ROLE_OPTIONS = [
-    { value: 'admin', label: 'Председатель' },
-    { value: 'dispatcher', label: 'Диспетчер' },
-    { value: 'main_dispatcher', label: 'Главный диспетчер' },
-];
-
-const ROLE_LABELS = {
-    admin: 'Председатель',
-    dispatcher: 'Диспетчер',
-    main_dispatcher: 'Главный диспетчер',
-};
-
 const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
     const companyInitial = companyName ? companyName.trim()[0].toUpperCase() : '?';
 
     const [showAdd, setShowAdd] = useState(false);
-    const [role, setRole] = useState('dispatcher');
-    const [code, setCode] = useState(null);
+    const [roleInput, setRoleInput] = useState('');
+    const [phoneInput, setPhoneInput] = useState('');
+    const [nameInput, setNameInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
 
     const staff = []; // заменим позже на реальный список
 
-    const handleGetCode = async () => {
+    const handleAdd = async () => {
+        if (!roleInput.trim()) {
+            setError('Введите должность');
+            return;
+        }
+        if (!phoneInput.trim()) {
+            setError('Введите номер телефона');
+            return;
+        }
+
         setLoading(true);
         setError(null);
         try {
-            const data = await addStaff(companyId, role, staffId);
+            const data = await addStaff(
+                companyId,
+                roleInput.trim(),
+                phoneInput.trim(),
+                nameInput.trim() || null,
+            );
             console.log('Ответ addStaff:', data);
+
             if (!data.ok) {
-                setError(data.error || 'Не удалось создать сотрудника');
+                setError(data.error || 'Не удалось добавить сотрудника');
                 return;
             }
-            setCode(data.code);
+            setSuccess(true);
+            setRoleInput('');
+            setPhoneInput('');
+            setNameInput('');
+            setTimeout(() => {
+                setSuccess(false);
+                setShowAdd(false);
+            }, 1500);
         } catch (err) {
             console.error('Ошибка addStaff:', err);
             setError('Сервис недоступен');
@@ -57,9 +69,11 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
 
     const handleReset = () => {
         setShowAdd(false);
-        setCode(null);
         setError(null);
-        setRole('dispatcher');
+        setRoleInput('');
+        setPhoneInput('');
+        setNameInput('');
+        setSuccess(false);
     };
 
     return (
@@ -106,13 +120,13 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
                             showChevron
                             title={member.full_name}
                         >
-                            {ROLE_LABELS[member.role] || member.role}
+                            {member.role}
                         </CellSimple>
                     ))}
                 </CellList>
 
-                {/* Блок добавления сотрудника */}
-                {!showAdd && !code && (
+                {/* Кнопка "Добавить сотрудника" */}
+                {!showAdd && (
                     <Button
                         appearance="themed"
                         mode="primary"
@@ -123,42 +137,68 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
                     </Button>
                 )}
 
-                {showAdd && !code && (
+                {/* Форма добавления */}
+                {showAdd && (
                     <Flex direction="column" gap={12}>
                         <Flex direction="column" gap={4}>
+                        </Flex>
+
+                        <Flex direction="column" gap={4}>
                             <Typography.Text>Должность</Typography.Text>
-                            <select
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
+                            <input
+                                type="text"
+                                value={roleInput}
+                                onChange={(e) => setRoleInput(e.target.value)}
+                                placeholder="Например: Диспетчер"
                                 style={{
                                     padding: '10px 12px',
                                     borderRadius: 8,
                                     border: '1px solid #d9d9d9',
                                     fontSize: 16,
                                     background: '#fff',
+                                    outline: 'none',
                                 }}
-                            >
-                                {ROLE_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
+                            />
                         </Flex>
+
+                        <Flex direction="column" gap={4}>
+                            <Typography.Text>Телефон</Typography.Text>
+                            <input
+                                type="tel"
+                                value={phoneInput}
+                                onChange={(e) => setPhoneInput(e.target.value)}
+                                placeholder="+7 999 000-00-00"
+                                style={{
+                                    padding: '10px 12px',
+                                    borderRadius: 8,
+                                    border: '1px solid #d9d9d9',
+                                    fontSize: 16,
+                                    background: '#fff',
+                                    outline: 'none',
+                                }}
+                            />
+                        </Flex>
+
                         {error && (
                             <Typography.Text style={{ color: 'red' }}>
                                 {error}
                             </Typography.Text>
                         )}
+                        {success && (
+                            <Typography.Text style={{ color: 'green' }}>
+                                Сотрудник добавлен
+                            </Typography.Text>
+                        )}
+
                         <Flex direction="row" gap={8}>
                             <Button
                                 appearance="themed"
                                 mode="primary"
                                 size="medium"
-                                onClick={handleGetCode}
+                                onClick={handleAdd}
                                 disabled={loading}
                             >
-                                {loading ? 'Генерация...' : 'Получить код'}
+                                {loading ? 'Добавление...' : 'Добавить'}
                             </Button>
                             <Button
                                 appearance="neutral"
@@ -169,30 +209,6 @@ const AdminScreen = ({ companyName, fullName, companyId, staffId }) => {
                                 Отмена
                             </Button>
                         </Flex>
-                    </Flex>
-                )}
-
-                {code && (
-                    <Flex direction="column" gap={12}>
-                        <Typography.Text>Код для сотрудника:</Typography.Text>
-                        <Container
-                            style={{
-                                padding: 16,
-                                background: '#f2f3f5',
-                                borderRadius: 12,
-                                textAlign: 'center',
-                            }}
-                        >
-                            <Typography.Title>{code}</Typography.Title>
-                        </Container>
-                        <Button
-                            appearance="neutral"
-                            mode="secondary"
-                            size="medium"
-                            onClick={handleReset}
-                        >
-                            Готово
-                        </Button>
                     </Flex>
                 )}
 

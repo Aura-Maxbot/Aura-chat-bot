@@ -45,14 +45,14 @@ class UserRoleResponse(BaseModel):
 class AddStaffRequest(BaseModel):
     company_id: int
     role: str
-    created_by: int | None = None
+    phone: str
+    full_name: str | None = None
 
 
 class AddStaffResponse(BaseModel):
     ok: bool
     error: str | None = None
     staff_id: int | None = None
-    code: str | None = None
 
 
 
@@ -110,18 +110,12 @@ def get_staff_by_max_id(max_id: int, db: Session = Depends(get_db)):
 @app.post("/api/staff/add", response_model=AddStaffResponse)
 def add_staff(payload: AddStaffRequest, db: Session = Depends(get_db)):
     logic = StaffLogic(db)
-    result = logic.add(
+    result = logic.add_direct(
         company_id=payload.company_id,
-        max_id=None,
-        full_name="Не активирован",
-        phone=None,
+        full_name=payload.full_name or "Не активирован",
+        phone=payload.phone,
         role=payload.role,
-        created_by=payload.created_by,
     )
     if not result.get("ok"):
         return {"ok": False, "error": result.get("error")}
-    return {
-        "ok": True,
-        "staff_id": result["staff_id"],
-        "code": result["code"],
-    }
+    return {"ok": True, "staff_id": result["staff_id"]}

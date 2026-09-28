@@ -8,14 +8,15 @@ export async function fetchUserRole(maxId) {
     return response.json();
 }
 
-export async function addStaff(companyId, role, createdBy) {
+export async function addStaff(companyId, role, phone, fullName) {
     const response = await fetch(`${API_URL}/api/staff/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             company_id: companyId,
             role,
-            created_by: createdBy,
+            phone,
+            full_name: fullName,
         }),
     });
     if (!response.ok) {
