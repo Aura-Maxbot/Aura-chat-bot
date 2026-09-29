@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from models.company import Company
 from models.staff import Staff
 # from models.code_generator import generate_code
+from core.phone import normalize_phone 
 
 class CompanyLogic:
 
@@ -64,9 +65,9 @@ class CompanyLogic:
         return self.db.query(Company).filter(Company.is_active == True).all()
 
     def check_phone(self, phone: str) -> dict | None:
+        phone = normalize_phone(phone)
         if not phone:
             return None
-        phone = phone.strip()
         company = self.db.query(Company).filter(Company.phone == phone).first()
         if not company:
             return None

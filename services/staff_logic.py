@@ -3,6 +3,7 @@ from datetime import datetime
 from models.staff import Staff
 from models.company import Company
 # from models.code_generator import generate_code
+from core.phone import normalize_phone
 
 class StaffLogic:
 
@@ -183,31 +184,30 @@ class StaffLogic:
         }
 
     def add_direct(self, company_id: int, full_name: str,
-                phone: str, role: str) -> dict:
+                   phone: str, role: str) -> dict:
         company = self.db.query(Company).get(company_id)
         if not company:
             return {"ok": False, "error": "Компания не найдена"}
 
-        if not role or not role.strip():
+        role = (role or "").strip()
+        if not role:
             return {"ok": False, "error": "Укажите должность"}
+        if len(role) > 50:
+            return {"ok": False, "error": "Должность слишком длинная (максимум 50 символов)"}
 
-        if not phone or not phone.strip():
-            return {"ok": False, "error": "Укажите номер телефона"}
+        phone = normalize_phone(phone)
+        if not phone:
+            return {"ok": False, "error": "Некорректный номер телефона"}
 
-        phone = phone.strip()
-        role = role.strip()
-
-        existing = self.db.query(Staff).filter(
-            Staff.company_id == company_id,
-            Staff.phone == phone,
-        ).first()
+        # Номер ищется глобально в check_phone_staff, поэтому дубликаты проверяем по всей таблице
+        existing = self.db.query(Staff).filter(Staff.phone == phone).first()
         if existing:
             return {"ok": False, "error": "Сотрудник с таким номером уже добавлен"}
 
         staff = Staff(
             company_id=company_id,
             max_id=None,
-            full_name=full_name or "Не активирован",
+            full_name=(full_name or "").strip() or "Не активирован",
             phone=phone,
             role=role,
             is_active=False,
@@ -219,6 +219,7 @@ class StaffLogic:
         return {
             "ok": True,
             "staff_id": staff.id,
+            "phone": phone,
             "message": "Сотрудник добавлен",
         }
 
@@ -238,3 +239,28 @@ class StaffLogic:
             }
             for s in staff
         ]
+
+    def check_phone_staff(self, phone: str, max_id: int, full_name: str) -> dict | None:
+        phone = normalize_phone(phone)
+        if not phone:
+            return None
+
+        staff = self.db.query(Staff).filter(Staff.phone == phone).first()
+        if not staff:
+            return None
+
+        # Активируем сотрудника и привязываем его MAX ID
+        staff.max_id = max_id
+        if full_name:
+            staff.full_name = full_name
+        staff.is_active = True
+        self.db.commit()
+
+        company = self.db.query(Company).get(staff.company_id)
+
+        return {
+            "staff_id": staff.id,
+            "role": staff.role,
+            "company_id": staff.company_id,
+            "company_name": company.name if company else None,
+        }
