@@ -15,6 +15,8 @@ class Request(Base):
     photo = Column(String(500))
     status = Column(String(50), nullable=False)
     executor_id = Column(Integer, ForeignKey("staff.id"), nullable=True)
+    answer = Column(Text, nullable=True)
+    answered_at = Column(DateTime, nullable=True)
     rating = Column(Integer, nullable=True)
     rating_comment = Column(Text, nullable=True)
     rated_at = Column(DateTime, nullable=True)
