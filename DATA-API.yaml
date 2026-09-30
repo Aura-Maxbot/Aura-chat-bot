@@ -1,0 +1,227 @@
+config_version: "1.0"
+solution: "Aura Chat Bot API"   # или идентификатор команды
+base_url: "https://api.example.com"
+openapi: "openapi.yaml"
+test_data: "test-data.json"
+
+auth:
+  type: none
+  note: "Идентификация по max_id в запросе; роль определяется сервером."
+
+accounts:
+  admin:    {max_id: 100001, phone: "+79990000001"}
+  staff:    {max_id: 100002, phone: "+79990000002"}
+  resident: {max_id: 100003, binding_code: "<КОД_КВАРТИРЫ>"}
+
+# Значения ${...} подставляются из test-data.json или из capture предыдущих шагов
+checks:
+  - id: sys-health
+    name: Проверка работоспособности
+    role: anonymous
+    method: GET
+    path: /health
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [status], values: {status: healthy}}
+
+  - id: company-register-admin
+    name: Регистрация администратора по телефону компании
+    role: admin
+    method: POST
+    path: /api/company/check-phone-admin
+    headers: {Content-Type: application/json}
+    body: {phone: "${accounts.admin.phone}", max_id: "${accounts.admin.max_id}", full_name: "${accounts.admin.full_name}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, exists, company_name, staff_id], values: {ok: true, exists: true}}
+
+  - id: staff-by-max-id-admin
+    name: Получение роли администратора
+    role: admin
+    method: GET
+    path: /api/staff/by-max-id/{max_id}
+    path_params: {max_id: "${accounts.admin.max_id}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, found, role, staff_id, company_id, company_name], values: {ok: true, found: true, role: admin}}
+
+  - id: staff-add
+    name: Добавление сотрудника администратором
+    role: admin
+    method: POST
+    path: /api/staff/add
+    headers: {Content-Type: application/json}
+    body: {admin_max_id: "${accounts.admin.max_id}", role: "${new_staff.role}", phone: "${new_staff.phone}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, staff_id, phone], values: {ok: true}}
+
+  - id: staff-list-admin
+    name: Список сотрудников компании
+    role: admin
+    method: GET
+    path: /api/staff/list/{admin_max_id}
+    path_params: {admin_max_id: "${accounts.admin.max_id}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body:
+        required: [ok, staff]
+        values: {ok: true}
+        staff_item_required: [staff_id, full_name, role, is_active]
+
+  - id: staff-add-forbidden
+    name: Негативный - не администратор не может добавлять сотрудников
+    role: staff
+    method: POST
+    path: /api/staff/add
+    headers: {Content-Type: application/json}
+    body: {admin_max_id: "${accounts.staff.max_id}", role: plumber, phone: "+79990000010"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, error], values: {ok: false}}
+
+  - id: staff-check-phone
+    name: Активация сотрудника по телефону
+    role: staff
+    method: POST
+    path: /api/staff/check-phone
+    headers: {Content-Type: application/json}
+    body: {phone: "${accounts.staff.phone}", max_id: "${accounts.staff.max_id}", full_name: "${accounts.staff.full_name}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, exists, role, staff_id, company_id, company_name], values: {ok: true, exists: true}}
+
+  - id: building-add
+    name: Добавление дома
+    role: admin
+    method: POST
+    path: /api/building/add
+    headers: {Content-Type: application/json}
+    body:
+      admin_max_id: "${accounts.admin.max_id}"
+      address: "${building.address}"
+      apartments_count: "${building.apartments_count}"
+      floors_count: "${building.floors_count}"
+    capture: {building_id: "$.building_id"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, building_id, apartments_count], values: {ok: true}}
+
+  - id: building-codes-xlsx
+    name: Скачивание XLSX с кодами квартир
+    role: admin
+    method: GET
+    path: /api/building/{building_id}/codes-xlsx
+    path_params: {building_id: "${building_id}"}
+    query: {admin_max_id: "${accounts.admin.max_id}"}
+    expect:
+      status: [200]
+      content_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      headers: {Content-Disposition: "attachment"}
+
+  - id: building-codes-forbidden
+    name: Негативный - коды недоступны не администратору
+    role: staff
+    method: GET
+    path: /api/building/{building_id}/codes-xlsx
+    path_params: {building_id: "${building_id}"}
+    query: {admin_max_id: "${accounts.staff.max_id}"}
+    expect:
+      status: [403]
+
+  - id: resident-bind
+    name: Привязка жителя к квартире по коду
+    role: resident
+    method: POST
+    path: /api/resident/bind
+    headers: {Content-Type: application/json}
+    body: {code: "${accounts.resident.binding_code}", max_id: "${accounts.resident.max_id}", full_name: "${accounts.resident.full_name}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, resident_id, apartment_id, apartment_number, address, company_id], values: {ok: true}}
+
+  - id: resident-by-max-id
+    name: Получение данных жителя
+    role: resident
+    method: GET
+    path: /api/resident/by-max-id/{max_id}
+    path_params: {max_id: "${accounts.resident.max_id}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, found, resident_id, address], values: {ok: true, found: true}}
+
+  - id: request-recipients
+    name: Список адресатов обращения
+    role: resident
+    method: GET
+    path: /api/request/recipients/{max_id}
+    path_params: {max_id: "${accounts.resident.max_id}"}
+    capture: {recipient_staff_id: "$.staff[0].staff_id"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, staff], values: {ok: true}, staff_item_required: [staff_id, role]}
+
+  - id: request-create
+    name: Создание обращения
+    role: resident
+    method: POST
+    path: /api/request/create
+    headers: {Content-Type: application/json}
+    body:
+      max_id: "${accounts.resident.max_id}"
+      staff_id: "${recipient_staff_id}"
+      description: "${request.description}"
+    capture: {request_id: "$.request_id", staff_max_id: "$.staff_max_id"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, request_id, category, staff_max_id, staff_role, address, apartment_number, admin_max_ids], values: {ok: true}}
+
+  - id: request-answer
+    name: Ответ сотрудника на обращение
+    role: staff
+    method: POST
+    path: /api/request/answer
+    headers: {Content-Type: application/json}
+    body: {staff_max_id: "${staff_max_id}", request_id: "${request_id}", answer: "${request.answer}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body: {required: [ok, request_id, resident_max_id, staff_role, admin_max_ids], values: {ok: true}}
+
+  - id: request-my
+    name: Мои обращения (виден ответ)
+    role: resident
+    method: GET
+    path: /api/request/my/{max_id}
+    path_params: {max_id: "${accounts.resident.max_id}"}
+    expect:
+      status: [200]
+      content_type: application/json
+      body:
+        required: [ok, requests]
+        values: {ok: true}
+        requests_item_required: [request_id, category, description, status]
+
+  - id: validation-error
+    name: Негативный - невалидное тело запроса
+    role: anonymous
+    method: POST
+    path: /api/staff/check-phone
+    headers: {Content-Type: application/json}
+    body: {phone: "+79990000002"}
+    expect:
+      status: [422]
+      content_type: application/json
+      body: {required: [detail]}

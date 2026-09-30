@@ -1,0 +1,484 @@
+openapi: 3.0.3
+info:
+  title: Aura Chat Bot API
+  version: 1.0.0
+  description: >
+    API чат-бота для управляющих компаний. Отдельной аутентификации нет:
+    пользователь идентифицируется по max_id (ID в мессенджере), роль определяется на сервере.
+    Бизнес-ошибки возвращаются с HTTP 200 и ok=false; ошибки валидации — 422.
+servers:
+  - url: https://api.example.com
+tags:
+  - name: system
+  - name: company
+  - name: staff
+  - name: building
+  - name: resident
+  - name: request
+paths:
+  /:
+    get:
+      tags: [system]
+      summary: Статус сервиса
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: ok}
+                  service: {type: string, example: Aura Chat Bot API}
+  /health:
+    get:
+      tags: [system]
+      summary: Проверка работоспособности
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: healthy}
+  /api/company/check-phone-admin:
+    post:
+      tags: [company]
+      summary: Проверка телефона компании и регистрация администратора
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PhoneCheckRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PhoneCheckResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/staff/by-max-id/{max_id}:
+    get:
+      tags: [staff]
+      summary: Получить сотрудника (роль и компанию) по max_id
+      parameters:
+        - {$ref: '#/components/parameters/MaxId'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserRoleResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/staff/add:
+    post:
+      tags: [staff]
+      summary: Добавить сотрудника (только администратор)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddStaffRequest'}
+      responses:
+        '200':
+          description: OK (при нехватке прав ok=false)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AddStaffResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/staff/by-company/{company_id}:
+    get:
+      tags: [staff]
+      summary: Список сотрудников компании
+      parameters:
+        - name: company_id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StaffListResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/staff/check-phone:
+    post:
+      tags: [staff]
+      summary: Проверка телефона сотрудника и привязка max_id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StaffCheckRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StaffCheckResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/staff/list/{admin_max_id}:
+    get:
+      tags: [staff]
+      summary: Список сотрудников компании администратора
+      parameters:
+        - name: admin_max_id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        '200':
+          description: OK (не администратору — ok=false)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StaffListResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/building/add:
+    post:
+      tags: [building]
+      summary: Добавить дом (только администратор)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddBuildingRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AddBuildingResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/building/{building_id}/codes-xlsx:
+    get:
+      tags: [building]
+      summary: Скачать XLSX с кодами привязки квартир (только администратор)
+      parameters:
+        - name: building_id
+          in: path
+          required: true
+          schema: {type: integer}
+        - name: admin_max_id
+          in: query
+          required: true
+          schema: {type: integer}
+      responses:
+        '200':
+          description: XLSX-файл
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        '403': {description: Нет прав}
+        '404': {description: Дом не найден}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/resident/by-max-id/{max_id}:
+    get:
+      tags: [resident]
+      summary: Получить жителя по max_id
+      parameters:
+        - {$ref: '#/components/parameters/MaxId'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ResidentInfoResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/resident/bind:
+    post:
+      tags: [resident]
+      summary: Привязать жителя к квартире по коду
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BindResidentRequest'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ResidentInfoResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/request/recipients/{max_id}:
+    get:
+      tags: [request]
+      summary: Сотрудники, которым житель может отправить обращение
+      parameters:
+        - {$ref: '#/components/parameters/MaxId'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecipientsResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/request/create:
+    post:
+      tags: [request]
+      summary: Создать обращение жителя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateRequestPayload'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreateRequestResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/request/answer:
+    post:
+      tags: [request]
+      summary: Ответить на обращение (сотрудник)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AnswerRequestPayload'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AnswerRequestResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/request/my/{max_id}:
+    get:
+      tags: [request]
+      summary: Мои обращения жителя
+      parameters:
+        - {$ref: '#/components/parameters/MaxId'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MyRequestsResponse'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+components:
+  parameters:
+    MaxId:
+      name: max_id
+      in: path
+      required: true
+      description: ID пользователя в мессенджере MAX
+      schema: {type: integer}
+  responses:
+    ValidationError:
+      description: Ошибка валидации (FastAPI)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    loc: {type: array, items: {}}
+                    msg: {type: string}
+                    type: {type: string}
+  schemas:
+    PhoneCheckRequest:
+      type: object
+      required: [phone, max_id]
+      properties:
+        phone: {type: string, example: '+79990000001'}
+        max_id: {type: integer, example: 100001}
+        full_name: {type: string, nullable: true}
+    PhoneCheckResponse:
+      type: object
+      required: [ok, exists]
+      properties:
+        ok: {type: boolean}
+        exists: {type: boolean}
+        company_name: {type: string, nullable: true}
+        staff_id: {type: integer, nullable: true}
+    UserRoleResponse:
+      type: object
+      required: [ok, found]
+      properties:
+        ok: {type: boolean}
+        found: {type: boolean}
+        role: {type: string, nullable: true}
+        staff_id: {type: integer, nullable: true}
+        full_name: {type: string, nullable: true}
+        company_id: {type: integer, nullable: true}
+        company_name: {type: string, nullable: true}
+    AddStaffRequest:
+      type: object
+      required: [admin_max_id, role, phone]
+      properties:
+        admin_max_id: {type: integer}
+        role: {type: string}
+        phone: {type: string}
+    AddStaffResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        staff_id: {type: integer, nullable: true}
+        phone: {type: string, nullable: true}
+    StaffItem:
+      type: object
+      required: [staff_id, full_name, role, is_active]
+      properties:
+        staff_id: {type: integer}
+        full_name: {type: string}
+        role: {type: string}
+        phone: {type: string, nullable: true}
+        is_active: {type: boolean}
+    StaffListResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        staff:
+          type: array
+          items: {$ref: '#/components/schemas/StaffItem'}
+    StaffCheckRequest:
+      type: object
+      required: [phone, max_id]
+      properties:
+        phone: {type: string}
+        max_id: {type: integer}
+        full_name: {type: string, nullable: true}
+    StaffCheckResponse:
+      type: object
+      required: [ok, exists]
+      properties:
+        ok: {type: boolean}
+        exists: {type: boolean}
+        company_name: {type: string, nullable: true}
+        role: {type: string, nullable: true}
+        staff_id: {type: integer, nullable: true}
+        company_id: {type: integer, nullable: true}
+    AddBuildingRequest:
+      type: object
+      required: [admin_max_id, address, apartments_count, floors_count]
+      properties:
+        admin_max_id: {type: integer}
+        address: {type: string}
+        apartments_count: {type: integer, minimum: 1}
+        floors_count: {type: integer, minimum: 1}
+    AddBuildingResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        building_id: {type: integer, nullable: true}
+        apartments_count: {type: integer, nullable: true}
+    BindResidentRequest:
+      type: object
+      required: [code, max_id]
+      properties:
+        code: {type: string}
+        max_id: {type: integer}
+        full_name: {type: string, nullable: true}
+    ResidentInfoResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        found: {type: boolean}
+        error: {type: string, nullable: true}
+        resident_id: {type: integer, nullable: true}
+        full_name: {type: string, nullable: true}
+        apartment_id: {type: integer, nullable: true}
+        apartment_number: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        company_id: {type: integer, nullable: true}
+        company_name: {type: string, nullable: true}
+    RecipientItem:
+      type: object
+      required: [staff_id, role]
+      properties:
+        staff_id: {type: integer}
+        role: {type: string}
+        full_name: {type: string, nullable: true}
+    RecipientsResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        staff:
+          type: array
+          items: {$ref: '#/components/schemas/RecipientItem'}
+    CreateRequestPayload:
+      type: object
+      required: [max_id, staff_id, description]
+      properties:
+        max_id: {type: integer}
+        staff_id: {type: integer}
+        description: {type: string}
+        photo: {type: string, nullable: true, description: Фото (строка, напр. base64 или URL)}
+    CreateRequestResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        request_id: {type: integer, nullable: true}
+        category: {type: string, nullable: true}
+        staff_max_id: {type: integer, nullable: true}
+        staff_role: {type: string, nullable: true}
+        staff_name: {type: string, nullable: true}
+        resident_name: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        apartment_number: {type: string, nullable: true}
+        admin_max_ids:
+          type: array
+          items: {type: integer}
+    AnswerRequestPayload:
+      type: object
+      required: [staff_max_id, request_id, answer]
+      properties:
+        staff_max_id: {type: integer}
+        request_id: {type: integer}
+        answer: {type: string}
+    AnswerRequestResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        request_id: {type: integer, nullable: true}
+        resident_max_id: {type: integer, nullable: true}
+        resident_name: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        apartment_number: {type: string, nullable: true}
+        staff_role: {type: string, nullable: true}
+        staff_name: {type: string, nullable: true}
+        admin_max_ids:
+          type: array
+          items: {type: integer}
+    MyRequestItem:
+      type: object
+      required: [request_id, category, description, status]
+      properties:
+        request_id: {type: integer}
+        category: {type: string}
+        description: {type: string}
+        status: {type: string}
+        answer: {type: string, nullable: true}
+        created_at: {type: string, nullable: true}
+    MyRequestsResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        requests:
+          type: array
+          items: {$ref: '#/components/schemas/MyRequestItem'}
